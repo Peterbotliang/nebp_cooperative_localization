@@ -21,4 +21,4 @@ Run the cooperative localization algorithm:
 python main.py
 ```
 
-Check the parameters that can be tunes using `python main.py --help`
+Check the parameters that can be tuned using `python main.py --help`
