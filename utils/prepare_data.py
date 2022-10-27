@@ -1,3 +1,8 @@
+# ------------------------------------------------------------------------
+# Cooperative Localization
+# Copyright (c) 2022 MIngchao Liang. All Rights Reserved.
+# Licensed under the MIT License [see LICENSE for details]
+# ------------------------------------------------------------------------
 import os
 import sys
 sys.path.append(os.path.dirname(__file__))
