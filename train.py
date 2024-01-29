@@ -64,11 +64,11 @@ if __name__ == '__main__':
     parser.add_argument('--train_size',
                         help='The number of samples in training_set',
                         type = int,
-                        default = 1)
+                        default = 100)
     parser.add_argument('--val_size',
                         help='The number of samples in training_set',
                         type = int,
-                        default = 1)
+                        default = 10)
     parser.add_argument('--num_epochs',
                         help='The number of epochs',
                         type = int,
@@ -124,7 +124,7 @@ if __name__ == '__main__':
     test_size = 1
     num_epochs = args.num_epochs
     lr = args.lr
-    batch_size = args.batch_size
+     = args.
     output_dir = args.output_dir
 
     if not os.path.exists(output_dir):
@@ -163,7 +163,7 @@ if __name__ == '__main__':
                                       start_after = 0,
                                       seeds = seeds)
 
-    train_loader = DataLoader(dataset_train, batch_size = 2, shuffle = True, collate_fn = collate, num_workers = 4, pin_memory = extras['pin_memory'])
+    train_loader = DataLoader(dataset_train, batch_size = batch_size, shuffle = True, collate_fn = collate, num_workers = 4, pin_memory = extras['pin_memory'])
 
     dataset_val = synthetic_dataset(partition = 'val',
                                     track_style = track_style,
@@ -178,7 +178,7 @@ if __name__ == '__main__':
                                     sigma_meas = sigma_meas,
                                     start_after = 0,
                                     seeds = seeds)
-    val_loader = DataLoader(dataset_val, batch_size = 3, shuffle = False, collate_fn = collate, num_workers = 4, pin_memory = extras['pin_memory'])
+    val_loader = DataLoader(dataset_val, batch_size = batch_size, shuffle = False, collate_fn = collate, num_workers = 4, pin_memory = extras['pin_memory'])
 
     dim_node = 20
     dim_edge = 32
