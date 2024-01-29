@@ -21,7 +21,8 @@ import matplotlib.pyplot as plt
 
 from utils.synthetic import synthetic_dataset, get_model_parameters
 from utils.prepare_data import prepare_data
-from bp_test import bp_test
+from utils.bp_test import bp_test
+from utils.hybrid_test import hybrid_test
 
 def collate(samples):
     # The input `samples` is a list of pairs
@@ -58,8 +59,8 @@ def main():
                         help='The std of measurement noise',
                         type = float,
                         default = 1)
-    parser.add_argument('--num_samples',
-                        help='The number of samples to generate',
+    parser.add_argument('--test_size',
+                        help='The number of samples to generate and test',
                         type = int,
                         default = 1)
     parser.add_argument('--batch_size',
@@ -69,8 +70,11 @@ def main():
     parser.add_argument('--use_cuda',
                         help = 'Flag of using cuda',
                         action = 'store_true')
-    parser.add_argument('--result_path',
+    parser.add_argument('--output_dir',
                         help = 'The path to save the localization results',
+                        default = None)
+    parser.add_argument('--model_path',
+                        help = 'The path to load trained model',
                         default = None)
     args = parser.parse_args()
 
@@ -93,8 +97,9 @@ def main():
     sigma_driving = args.driving_noise_std
     sigma_meas_inference = args.meas_noise_std
     sigma_meas_data = args.meas_noise_std
-    size = args.num_samples
+    size = args.test_size
     batch_size = args.batch_size
+    model_path = args.model_path
 
 
     xmin = 10
@@ -136,17 +141,18 @@ def main():
     print('--------------------------------')
     num_particles = 50000
     for i in range(num_mc):
-        pred, true, rmse, cov_tr, cov, particle_single = bp_test(data_loader = data_loader,
-                                           random_seed = random_seed + i,
-                                           num_steps = num_steps,
-                                           num_agents = num_agents,
-                                           num_particles = num_particles,
-                                           P0 = P0,
-                                           sigma_driving = sigma_driving,
-                                           sigma_meas = sigma_meas_inference,
-                                           is_drag = is_drag,
-                                                                 plot = False,
-                                                                 device = device)
+        pred, true, rmse, \
+        cov_tr, cov, particle_single = bp_test(data_loader = data_loader,
+                                            random_seed = random_seed + i,
+                                            num_steps = num_steps,
+                                            num_agents = num_agents,
+                                            num_particles = num_particles,
+                                            P0 = P0,
+                                            sigma_driving = sigma_driving,
+                                            sigma_meas = sigma_meas_inference,
+                                            is_drag = is_drag,
+                                            plot = False,
+                                            device = device)
         pred_bp_list.append(pred)
         true_bp_list.append(true)
         rmse_bp_list.append(rmse)
@@ -161,18 +167,67 @@ def main():
     cov_bp = torch.stack(cov_bp_list)
     particle_single_bp = torch.stack(particle_single_bp_list)
 
-    if args.result_path is not None:
+    if args.output_dir is not None:
         torch.save({'pred': pred_bp,
                     'true': true_bp,
                     'rmse': rmse_bp,
                     'cov_tr': cov_tr_bp,
                     'cov': cov_bp,
                     'particle_single': particle_single_bp},
-                   args.result_path)
+                   os.path.join(args.output_dir, 'bp.pt') )
+
 
     print('rmse of bp is {:.4f}'.format(torch.mean(rmse_bp)))
     print('mse of bp is {:.4f}'.format(torch.mean(rmse_bp ** 2)))
     print('Mean cov_tr of bp is {:.4f}'.format(torch.mean(cov_tr_bp)))
 
+
+    print('--------------------------------')
+    print('Running hybrid_test')
+    print('--------------------------------')
+    pred_hybrid_list = []
+    true_hybrid_list = []
+    rmse_hybrid_list = []
+    cov_tr_hybrid_list = []
+    cov_hybrid_list = []
+    particle_single_hybrid_list = []
+    for i in range(num_mc):
+        pred, true, rmse, \
+        cov_tr, cov, particle_single = hybrid_test(data_loader = data_loader,
+                                               filename = model_path,
+                                               random_seed = random_seed + i,
+                                               num_steps = num_steps,
+                                               num_agents = num_agents,
+                                               P0 = P0,
+                                               is_drag = is_drag,
+                                               plot = False,
+                                               device = device)
+        pred_hybrid_list.append(pred)
+        true_hybrid_list.append(true)
+        rmse_hybrid_list.append(rmse)
+        cov_tr_hybrid_list.append(cov_tr)
+        cov_hybrid_list.append(cov)
+        particle_single_hybrid_list.append(particle_single)
+
+    pred_hybrid = torch.stack(pred_hybrid_list)
+    true_hybrid = torch.stack(true_hybrid_list)
+    rmse_hybrid = torch.stack(rmse_hybrid_list)
+    cov_tr_hybrid = torch.stack(cov_tr_hybrid_list)
+    cov_hybrid = torch.stack(cov_hybrid_list)
+    particle_single_hybrid = torch.stack(particle_single_hybrid_list)
+    if args.output_dir is not None:
+        torch.save({'pred': pred_hybrid,
+                'true': true_hybrid,
+                    'rmse': rmse_hybrid,
+                    'cov_tr': cov_tr_hybrid,
+                    'cov': cov_hybrid,
+                    'particle_single': particle_single_hybrid},
+                   os.path.join(args.output_dir, 'hybrid.pt') )
+
+    print('rmse of hybrid is {:.4f}'.format(torch.mean(rmse_hybrid)))
+    print('mse of hybrid is {:.4f}'.format(torch.mean(rmse_hybrid ** 2)))
+    print('Mean cov_tr of hybrid is {:.4f}'.format(torch.mean(cov_tr_hybrid)))
+
 if __name__ == '__main__':
     main()
+

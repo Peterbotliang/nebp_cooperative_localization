@@ -279,7 +279,7 @@ def get_measurements(states, anchor_pos, R,
             # agent distance
             true_distances = np.sum((states[agent, 0 : 2, step][np.newaxis, :] - states[:, 0 : 2, step]) ** 2, axis = 1) ** 0.5
 
-            mask = np.ones(num_agents, dtype = np.bool)
+            mask = np.ones(num_agents, dtype = bool)
             mask[agent] = False
             meas_ind = np.argwhere(np.logical_and(true_distances <= agent_connectivity, mask)).squeeze(axis = 1)
             meas = true_distances[meas_ind] + np.random.multivariate_normal(mean = np.zeros(dim_meas), cov = R, size = meas_ind.shape).squeeze()

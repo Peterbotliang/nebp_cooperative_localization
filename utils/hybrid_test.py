@@ -3,11 +3,11 @@
 # Copyright (c) 2022 MIngchao Liang. All Rights Reserved.
 # Licensed under the MIT License [see LICENSE for details]
 # ------------------------------------------------------------------------
+
 import os
 import sys
 sys.path.append(os.path.dirname(__file__))
 
-import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -21,44 +21,39 @@ import dgl.function as fn
 
 from tqdm import tqdm
 
-from utils.synthetic import synthetic_dataset, get_model_parameters
-from utils.cooperative_localization import cooperative_localization_solver
-from utils.prepare_data import prepare_data
+from synthetic import synthetic_dataset, get_model_parameters
+from cooperative_localization import cooperative_localization_solver
+from prepare_data import prepare_data
 
-def bp_test(data_loader,
-            random_seed,
-            num_steps,
-            num_agents,
-            num_particles,
-            P0,
-            sigma_driving = 0.05,
-            sigma_meas = 0.3,
-            is_save = False,
-            is_drag = False,
-            plot = True,
-            device = None):
+
+def hybrid_test(data_loader,
+                filename,
+                random_seed,
+                num_steps,
+                num_agents,
+                P0,
+                is_save = False,
+                is_drag = False,
+                plot = False,
+                device = None):
     print('seed is {}'.format(random_seed))
+    print('Evaluating {}'.format(filename))
     torch.manual_seed(random_seed)
     torch.cuda.manual_seed_all(random_seed)
     torch.set_printoptions(sci_mode = False)
 
+    if not os.path.exists('./Figs'):
+        os.mkdir('./Figs')
+    if not os.path.exists('./Figs/test'):
+        os.mkdir('./Figs/test')
+
     if device is None:
         device = torch.device('cpu')
 
-    # sigma_driving = 0.05
-    # sigma_meas = 0.3
 
-    F, Q, _, R, W = get_model_parameters(sigma_driving = sigma_driving,
-                                         sigma_meas = sigma_meas)
-    F, Q, R, W = torch.from_numpy(F.astype(np.float32)), torch.from_numpy(Q.astype(np.float32)), torch.from_numpy(R.astype(np.float32)), torch.from_numpy(W.astype(np.float32))
-
-    cl_solver = cooperative_localization_solver(F, Q, W,
-                                                sigma_meas = sigma_meas,
-                                                num_particles = num_particles,
-                                                hybrid = False)
+    cl_solver = torch.load(filename, map_location=device)
     cl_solver = cl_solver.to(device)
 
-    np.random.seed(random_seed)
     torch.manual_seed(random_seed)
     torch.cuda.manual_seed_all(random_seed)
     pred_list = []
@@ -71,7 +66,7 @@ def bp_test(data_loader,
         cl_solver.eval()
         for minibatch_count, (bbg, states, anchor_pos, x_prior) in enumerate(data_loader):
             batch_size, _, dim_state, _ = states.shape
-            bbg = bbg.to(device)
+            # bbg = bbg.to(device)
             g_list = dgl.unbatch(bbg)
             bg_list = [dgl.batch(g_list[i: i + batch_size]) for i in range(0, len(g_list), batch_size)]
             states = states.to(device)
@@ -89,11 +84,9 @@ def bp_test(data_loader,
                 estimated_cov_list.append(estimated_cov)
                 particle_single_temp_list.append(particles[:, :, 0].clone())
 
-
             estimated_states = torch.stack(estimated_states_list).cpu().permute(1, 2, 0).reshape(batch_size, num_agents, dim_state, num_steps)
             estimated_cov = torch.stack(estimated_cov_list).cpu()
             particle_single = torch.stack(particle_single_temp_list).cpu().permute(1, 2, 0).reshape(batch_size, num_agents, dim_state, num_steps)
-
 
             estimated_cov_tr = torch.sum(torch.diagonal(estimated_cov, dim1 = 2, dim2 = 3).reshape(num_steps, batch_size, num_agents, dim_state)[:, :, :, :2], dim = 3).permute(1, 2, 0)
 
@@ -113,17 +106,11 @@ def bp_test(data_loader,
     rmse = torch.cat(rmse_list, dim = 0)
     particle_single = torch.cat(particle_single_list, dim = 0)
 
-    # print('Mean cov_cond of bp_test is {:.4f}'.format(torch.mean(cov_cond)))
-
-    if is_save:
-        torch.save({'pred': pred,
-                    'true': true,
-                    'anchor_pos': anchor_pos,
-                    'cov_tr': cov_tr,
-                    'rmse': rmse},
-                   './Results_temp/result_bp.pt')
-
     if plot:
+        if not os.path.exists('./Figs'):
+            os.mkdir('./Figs')
+        if not os.path.exists('./Figs/test'):
+            os.mkdir('./Figs/test')
         for i in range(true.shape[0]):
             plt.figure()
             for agent in range(num_agents):
@@ -134,30 +121,29 @@ def bp_test(data_loader,
             plt.scatter(anchor_pos[0, :, 0], anchor_pos[0, :, 1], color = 'k')
             plt.xlabel('x (m)')
             plt.ylabel('y (m)')
-            # plt.legend(loc = 'best')
             plt.tight_layout(pad = 0)
-            plt.savefig('Figs/test/{}_bp.eps'.format(i), format = 'eps')
+            plt.savefig('Figs/test/{}_hybrid.eps'.format(i), format = 'eps')
             plt.close()
         # plt.show()
 
     return pred, true, rmse, cov_tr, cov, particle_single
 
 if __name__ == '__main__':
-
     num_steps = 100
     num_agents = 3
-    size = 2
-    num_particles = 50000
-    P0 = 10 * torch.eye(4)
+    size = 50
+    P0 = 0.3 * torch.eye(4)
     random_seed = 100
-    dataset, data_loader = prepare_data(num_steps = num_steps,
+    filename = 'Results_temp/model.pt'
+    data_loader = prepare_data(num_steps = num_steps,
                                num_agents = num_agents,
                                P0 = P0,
                                size = size,
                                partition = 'test')
-    bp_test(data_loader = data_loader,
-            random_seed = random_seed,
-            num_steps = num_steps,
-            num_agents = num_agents,
-            num_particles = num_particles,
-            P0 = P0, plot = True)
+    hybrid_test(data_loader = data_loader,
+                filename = filename,
+                random_seed = random_seed,
+                num_steps = num_steps,
+                num_agents = num_agents,
+                P0 = P0)
+

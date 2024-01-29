@@ -1,4 +1,4 @@
-# Cooperative Localization
+# NEBP Cooperative Localization
 
 This repository is the python implementation of the following paper
 
@@ -7,18 +7,28 @@ cooperative localization,” in Proc. IEEE SSP-21, Jul. 2021, pp. 326-330. [[Arx
 
 ## Requirements
 
-- pytorch==1.7.1
-- dgl==0.5.3
+- pytorch==1.7.1, 2.1.2
+- dgl==0.5.3, 2.0.x
 - numpy>=1.18.1
 
-The code is tested on ubuntu 18.04, cuda 10.2.
+The package versions listed above are the ones that has been tested on. Other versions may also work.
+
+The code has been tested on ubuntu 18.04, cuda 10.2 and ubuntu 22.04, cuda 12.2.
 
 ## Usage
 
-Run the cooperative localization algorithm:
+To train the NEBP cooperative localization neural network:
 
 ```
-python main.py
+python train.py
 ```
 
-Check the parameters that can be tuned using `python main.py --help`
+Check the parameters that can be tuned using `python train.py --help`
+
+For testing (including both BP and NEBP), use
+
+```
+python test.py
+```
+
+Check the parameters that can be tuned using `python test.py --help`
