@@ -23,7 +23,7 @@ To train the NEBP cooperative localization neural network:
 python train.py
 ```
 
-Check the parameters that can be tuned using `python train.py --help`
+Check the parameters that can be tuned using `python train.py --help`. It takes some time to generate the synthetic data.
 
 For testing (including both BP and NEBP), use
 
